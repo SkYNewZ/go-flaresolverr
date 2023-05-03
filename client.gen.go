@@ -28,9 +28,9 @@ type Client interface {
 	// When you no longer need to use a session you should make sure to close it.
 	DestroySession(ctx context.Context, session uuid.UUID) error
 	// Get makes an HTTP GET request using flaresolverr proxy
-	// Session can be nil
+	// Session can be nil.
 	Get(ctx context.Context, u string, session uuid.UUID, proxy ...string) (*Response, error)
 	// Post makes an HTTP POST request using flaresolverr proxy
-	// data must be an application/x-www-form-urlencoded string
+	// data must be an application/x-www-form-urlencoded string.
 	Post(ctx context.Context, u string, session uuid.UUID, data string, proxy ...string) (*Response, error)
 }
