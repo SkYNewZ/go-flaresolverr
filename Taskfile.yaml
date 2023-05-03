@@ -1,0 +1,41 @@
+version: '3'
+
+tasks:
+  flaresolverr:start:
+    desc: Start a local flaresolverr instance
+    deps: [ podman ]
+    cmds:
+      - podman run -d --name flaresolverr --pull=newer -p 8191:8191 -e LOG_LEVEL=debug --restart=always ghcr.io/flaresolverr/flaresolverr:latest
+
+  flaresolverr:stop:
+    desc: Stop the local flaresolverr instance
+    deps: [ podman ]
+    cmds:
+      - podman stop flaresolverr
+
+  lint:
+    desc: Lint Go code
+    deps: [ golangci-lint ]
+    cmds:
+      - echo "Using version {{.VERSION}}"
+      - golangci-lint run --fix ./...
+    vars:
+      VERSION:
+        sh: golangci-lint --version
+
+  generate:
+    desc: Generate Go code
+    cmds:
+      - go generate ./...
+
+  podman:
+    internal: true
+    preconditions:
+      - sh: "command -v podman"
+        msg: "Must have podman installed"
+
+  golangci-lint:
+    internal: true
+    preconditions:
+      - sh: "command -v golangci-lint"
+        msg: "golangci-lint is missing. See https://golangci-lint.run/usage/install/"
