@@ -182,6 +182,7 @@ func Test_client_Get(t *testing.T) {
 		ctx     context.Context
 		u       string
 		session uuid.UUID
+		cookies []*Cookie
 		proxy   []string
 	}
 	tests := []struct {
@@ -196,6 +197,7 @@ func Test_client_Get(t *testing.T) {
 				ctx:     context.Background(),
 				u:       "https://httpbin.org/status/200",
 				session: uuid.Nil,
+				cookies: nil,
 				proxy:   nil,
 			},
 			want: &Response{
@@ -208,10 +210,32 @@ func Test_client_Get(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Expect a response with cookies",
+			args: args{
+				ctx:     context.Background(),
+				u:       "https://httpbin.org/cookies",
+				session: uuid.Nil,
+				cookies: []*Cookie{
+					{Name: "test_cookie", Value: "test_value"},
+					{Name: "session_id", Value: "abc123"},
+				},
+				proxy: nil,
+			},
+			want: &Response{
+				Status:  "ok",
+				Message: "Challenge not detected!",
+				Solution: &ResponseSolution{
+					URL:    "https://httpbin.org/cookies",
+					Status: http.StatusOK,
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := c.Get(tt.args.ctx, tt.args.u, tt.args.session, tt.args.proxy...)
+			got, err := c.Get(tt.args.ctx, tt.args.u, tt.args.session, tt.args.cookies, tt.args.proxy...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -227,6 +251,22 @@ func Test_client_Get(t *testing.T) {
 				"Solution.Cookies",
 			)); diff != "" {
 				t.Errorf("Get() mismatch (-want +got):\n%s", diff)
+			}
+
+			// Additional validation for cookie test case
+			if tt.name == "Expect a response with cookies" {
+				// Verify response contains cookies (httpbin.org/cookies echoes back cookies in response body)
+				if got.Solution.Response == "" {
+					t.Error("Expected response body to contain cookie data, got empty response")
+				}
+				// Verify that cookies were returned by the server
+				if got.Solution.Cookies == nil {
+					t.Error("Expected Solution.Cookies to be populated, got nil")
+				}
+				// Validate that we actually sent cookies and they were returned
+				if len(got.Solution.Cookies) < 2 {
+					t.Errorf("Expected at least 2 cookies to be sent and returned, got %d", len(got.Solution.Cookies))
+				}
 			}
 		})
 	}
@@ -306,6 +346,7 @@ func Test_client_Post(t *testing.T) {
 		u       string
 		session uuid.UUID
 		data    string
+		cookies []*Cookie
 		proxy   []string
 	}
 	tests := []struct {
@@ -321,6 +362,7 @@ func Test_client_Post(t *testing.T) {
 				u:       "https://httpbin.org/anything",
 				session: uuid.Nil,
 				data:    "foo=bar",
+				cookies: nil,
 				proxy:   nil,
 			},
 			want: &Response{
@@ -334,10 +376,33 @@ func Test_client_Post(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Expect a response with cookies",
+			args: args{
+				ctx:     context.Background(),
+				u:       "https://httpbin.org/anything",
+				session: uuid.Nil,
+				data:    "foo=bar",
+				cookies: []*Cookie{
+					{Name: "auth_token", Value: "xyz789"},
+					{Name: "user_pref", Value: "dark_mode"},
+				},
+				proxy: nil,
+			},
+			want: &Response{
+				Status:  "ok",
+				Message: "Challenge not detected!",
+				Solution: &ResponseSolution{
+					URL:    "https://httpbin.org/anything",
+					Status: http.StatusOK,
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := c.Post(tt.args.ctx, tt.args.u, tt.args.session, tt.args.data, tt.args.proxy...)
+			got, err := c.Post(tt.args.ctx, tt.args.u, tt.args.session, tt.args.data, tt.args.cookies, tt.args.proxy...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Post() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -353,6 +418,22 @@ func Test_client_Post(t *testing.T) {
 				"Solution.Response",
 			)); diff != "" {
 				t.Errorf("Post() mismatch (-want +got):\n%s", diff)
+			}
+
+			// Additional validation for cookie test case
+			if tt.name == "Expect a response with cookies" {
+				// Verify response contains data (httpbin.org/anything echoes back request details)
+				if got.Solution.Response == "" {
+					t.Error("Expected response body to contain request data, got empty response")
+				}
+				// Verify that cookies were returned by the server
+				if got.Solution.Cookies == nil {
+					t.Error("Expected Solution.Cookies to be populated, got nil")
+				}
+				// Validate that we actually sent cookies and they were returned
+				if len(got.Solution.Cookies) < 2 {
+					t.Errorf("Expected at least 2 cookies to be sent and returned, got %d", len(got.Solution.Cookies))
+				}
 			}
 		})
 	}

@@ -44,6 +44,26 @@ func New(baseURL string, timeout time.Duration, httpClient *http.Client) Client 
 	return &client{baseURL: baseURL, httpClient: httpClient, timeout: timeout}
 }
 
+// Cookie represents a browser cookie to be sent with requests.
+type Cookie struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// ResponseCookie represents a cookie returned in the response from FlareSolverr.
+type ResponseCookie struct {
+	Name     string  `json:"name"`
+	Value    string  `json:"value"`
+	Domain   string  `json:"domain"`
+	Path     string  `json:"path"`
+	Expires  float64 `json:"expires"`
+	Size     int     `json:"size"`
+	HTTPOnly bool    `json:"httpOnly"`
+	Secure   bool    `json:"secure"`
+	Session  bool    `json:"session"`
+	SameSite string  `json:"sameSite,omitempty"`
+}
+
 type Response struct {
 	Status         string            `json:"status"`
 	Message        string            `json:"message"`
@@ -76,31 +96,20 @@ type ResponseSolution struct {
 		ContentEncoding     string `json:"content-encoding"`
 		AltSvc              string `json:"alt-svc"`
 	} `json:"headers"`
-	Response string `json:"response"`
-	Cookies  []struct {
-		Name     string  `json:"name"`
-		Value    string  `json:"value"`
-		Domain   string  `json:"domain"`
-		Path     string  `json:"path"`
-		Expires  float64 `json:"expires"`
-		Size     int     `json:"size"`
-		HTTPOnly bool    `json:"httpOnly"`
-		Secure   bool    `json:"secure"`
-		Session  bool    `json:"session"`
-		SameSite string  `json:"sameSite,omitempty"`
-	} `json:"cookies"`
-	UserAgent string `json:"userAgent"`
+	Response  string            `json:"response"`
+	Cookies   []*ResponseCookie `json:"cookies"`
+	UserAgent string            `json:"userAgent"`
 }
 
 type flaresolverrCommand struct {
-	Cmd               command `json:"cmd"`
-	URL               string  `json:"url"`
-	Session           string  `json:"session,omitempty"`
-	MaxTimeout        int     `json:"maxTimeout"`
-	Cookies           []any   `json:"cookies,omitempty"`
-	ReturnOnlyCookies bool    `json:"returnOnlyCookies,omitempty"`
-	Proxy             string  `json:"proxy,omitempty"`
-	PostData          string  `json:"postData,omitempty"`
+	Cmd               command   `json:"cmd"`
+	URL               string    `json:"url"`
+	Session           string    `json:"session,omitempty"`
+	MaxTimeout        int       `json:"maxTimeout"`
+	Cookies           []*Cookie `json:"cookies,omitempty"`
+	ReturnOnlyCookies bool      `json:"returnOnlyCookies,omitempty"`
+	Proxy             string    `json:"proxy,omitempty"`
+	PostData          string    `json:"postData,omitempty"`
 }
 
 // CreateSession launch a new browser instance
@@ -145,13 +154,13 @@ func (c *client) DestroySession(ctx context.Context, session uuid.UUID) error {
 }
 
 // Get makes an HTTP GET request using flaresolverr proxy
-// Session can be nil.
-func (c *client) Get(ctx context.Context, u string, session uuid.UUID, proxy ...string) (*Response, error) {
+// Session can be uuid.Nil. Cookies can be nil or empty.
+func (c *client) Get(ctx context.Context, u string, session uuid.UUID, cookies []*Cookie, proxy ...string) (*Response, error) {
 	cmd := &flaresolverrCommand{
 		Cmd:               CommandRequestget,
 		URL:               u,
 		Session:           handleSession(session),
-		Cookies:           nil, // TODO: handle cookies
+		Cookies:           cookies,
 		ReturnOnlyCookies: false,
 	}
 
@@ -164,12 +173,13 @@ func (c *client) Get(ctx context.Context, u string, session uuid.UUID, proxy ...
 
 // Post makes an HTTP POST request using flaresolverr proxy
 // data must be an application/x-www-form-urlencoded string.
-func (c *client) Post(ctx context.Context, u string, session uuid.UUID, data string, proxy ...string) (*Response, error) {
+// Session can be uuid.Nil. Cookies can be nil or empty.
+func (c *client) Post(ctx context.Context, u string, session uuid.UUID, data string, cookies []*Cookie, proxy ...string) (*Response, error) {
 	cmd := &flaresolverrCommand{
 		Cmd:               CommandRequestpost,
 		URL:               u,
 		Session:           handleSession(session),
-		Cookies:           nil, // TODO: handle cookies
+		Cookies:           cookies,
 		ReturnOnlyCookies: false,
 		PostData:          data,
 	}
